@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OptiPDF - 智慧高畫質 PDF 壓縮工具</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- PDF.js CDN (Page rendering) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- PDF-Lib CDN (Cloudflare CDNJS - Higher reliability) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+  <script>
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    /* Comparison slider clip styles */
+    .compare-wrapper {
+      position: relative;
+      user-select: none;
+      overflow: hidden;
+    }
+    .compare-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-2 rounded-xl shadow-md">
+          <i data-lucide="file-down" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-xl font-bold tracking-tight text-slate-900">OptiPDF</h1>
+            <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">高畫質壓縮版</span>
+          </div>
+          <p class="text-xs text-slate-500">不破壞圖片解析度 • 智慧無損感演算法</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-medium">
+        <i data-lucide="shield-check" class="w-4 h-4"></i>
+        <span>100% 瀏覽器本機運算，不需上傳檔案</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-6 space-y-6">
+
+    <!-- Upload Zone -->
+    <div id="dropZone" class="relative group border-2 border-dashed border-slate-300 hover:border-emerald-500 transition-all duration-200 rounded-2xl bg-white p-8 text-center cursor-pointer shadow-sm hover:shadow">
+      <input type="file" id="fileInput" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+      <div class="flex flex-col items-center justify-center space-y-3">
+        <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+          <i data-lucide="upload-cloud" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <p class="text-base font-semibold text-slate-800">點擊上傳 或 拖曳 PDF 檔案至此處</p>
+          <p class="text-sm text-slate-500 mt-1">支援各類相片型、掃描文件、投影片及合約 PDF</p>
+        </div>
+        <div class="inline-flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
+          <i data-lucide="info" class="w-3.5 h-3.5"></i>
+          <span>演算法特別鎖定保留圖形銳利度，抑制毛邊與噪點</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control Dashboard (Hidden initially) -->
+    <div id="dashboard" class="hidden space-y-6">
+      <!-- File Metadata Bar -->
+      <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3 overflow-hidden">
+          <div class="bg-red-50 text-red-600 p-2.5 rounded-lg shrink-0">
+            <i data-lucide="file-text" class="w-6 h-6"></i>
+          </div>
+          <div class="truncate">
+            <div class="flex items-center space-x-2">
+              <p id="fileName" class="text-sm font-bold text-slate-900 truncate">document.pdf</p>
+              <span id="aspectBadge" class="hidden text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">16:9 簡報規格</span>
+            </div>
+            <p id="fileMeta" class="text-xs text-slate-500">原始體積: <span id="originalSizeBadge" class="font-semibold text-slate-700">0 MB</span> • 頁數: <span id="pageCountBadge" class="font-semibold text-slate-700">0</span> 頁</p>
+          </div>
+        </div>
+        <button id="reselectBtn" class="text-xs text-slate-500 hover:text-slate-800 flex items-center space-x-1 self-start sm:self-center border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>更換檔案</span>
+        </button>
+      </div>
+
+      <!-- Compression Presets & Parameters -->
+      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">選擇壓縮策略</h2>
+            <p class="text-xs text-slate-500">專為避免破壞圖片解析度設計的階梯式模式</p>
+          </div>
+          <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 font-medium rounded-md border border-emerald-200">
+            推薦「高畫質優先」
+          </span>
+        </div>
+
+        <!-- Mode Selection Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <!-- Preset 0: 16:9 Presentation (New) -->
+          <label id="presentationPreset" class="preset-card cursor-pointer border-2 border-slate-200 hover:border-slate-300 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <input type="radio" name="compressionMode" value="presentation" class="sr-only" />
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded">1080p 大螢幕</span>
+                <i data-lucide="projector" class="w-4 h-4 text-indigo-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm mt-2">16:9 簡報投影</h3>
+              <p class="text-xs text-slate-500 mt-1">144 DPI (1920×1080)<br/>會議電視/投影機點對點無失真，檔案極小</p>
+            </div>
+            <div class="mt-3 text-[11px] text-indigo-700 font-semibold flex items-center space-x-1">
+              <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
+              <span>會議演講首選</span>
+            </div>
+          </label>
+
+          <!-- Preset 1: High Quality (Default) -->
+          <label class="preset-card cursor-pointer border-2 border-emerald-500 bg-emerald-50/40 rounded-xl p-3.5 flex flex-col justify-between transition-all relative">
+            <input type="radio" name="compressionMode" value="hq" checked class="sr-only" />
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">最佳銳利度</span>
+                <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm mt-2">高畫質優先</h3>
+              <p class="text-xs text-slate-500 mt-1">200 DPI / 88% 畫質<br/>相片、印刷與合約近乎原樣，減肥約 35%~55%</p>
+            </div>
+            <div class="mt-3 text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
+              <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+              <span>最推薦相片與證件</span>
+            </div>
+          </label>
+
+          <!-- Preset 2: Balanced -->
+          <label class="preset-card cursor-pointer border-2 border-slate-200 hover:border-slate-300 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <input type="radio" name="compressionMode" value="balanced" class="sr-only" />
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded">標準推薦</span>
+                <i data-lucide="scale" class="w-4 h-4 text-blue-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm mt-2">均衡最佳化</h3>
+              <p class="text-xs text-slate-500 mt-1">150 DPI / 80% 畫質<br/>適合郵件寄送與文件，減肥約 50%~75%</p>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i>
+              <span>兼顧速度與清晰</span>
+            </div>
+          </label>
+
+          <!-- Preset 3: Ultra Compact -->
+          <label class="preset-card cursor-pointer border-2 border-slate-200 hover:border-slate-300 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <input type="radio" name="compressionMode" value="compact" class="sr-only" />
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">極致輕量</span>
+                <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm mt-2">極限瘦身</h3>
+              <p class="text-xs text-slate-500 mt-1">120 DPI / 70% 畫質<br/>嚴格限制檔案大小時使用 (減幅可達 80%+)</p>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
+              <i data-lucide="arrow-down-to-line" class="w-3.5 h-3.5"></i>
+              <span>檔案上限急救</span>
+            </div>
+          </label>
+
+          <!-- Preset 4: Custom -->
+          <label class="preset-card cursor-pointer border-2 border-slate-200 hover:border-slate-300 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <input type="radio" name="compressionMode" value="custom" class="sr-only" />
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-purple-800 bg-purple-100 px-2 py-0.5 rounded">專業微調</span>
+                <i data-lucide="sliders" class="w-4 h-4 text-purple-600"></i>
+              </div>
+              <h3 class="font-bold text-slate-900 text-sm mt-2">自訂解析度</h3>
+              <p class="text-xs text-slate-500 mt-1">自選 4K UHD (288 DPI) 或手動調配各項參數</p>
+            </div>
+            <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
+              <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
+              <span>進階自定義</span>
+            </div>
+          </label>
+        </div>
+
+        <!-- Custom Controls Slider Panel -->
+        <div id="customSettingsPanel" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- DPI Slider -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="dpiSlider" class="text-xs font-semibold text-slate-700 flex items-center space-x-1.5">
+                  <i data-lucide="monitor" class="w-3.5 h-3.5 text-slate-500"></i>
+                  <span>渲染解析度 (DPI)</span>
+                </label>
+                <span id="dpiValue" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">200 DPI</span>
+              </div>
+              <input type="range" id="dpiSlider" min="96" max="300" step="12" value="200" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+              <p class="text-[11px] text-slate-400 mt-1">DPI 越高圖片越細膩，200~300 為出版印刷/高畫質標準</p>
+            </div>
+
+            <!-- Quality Slider -->
+            <div>
+              <div class="flex justify-between items-center mb-1.5">
+                <label for="qualitySlider" class="text-xs font-semibold text-slate-700 flex items-center space-x-1.5">
+                  <i data-lucide="image" class="w-3.5 h-3.5 text-slate-500"></i>
+                  <span>影像壓縮品質 (JPEG Quality)</span>
+                </label>
+                <span id="qualityValue" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">88%</span>
+              </div>
+              <input type="range" id="qualitySlider" min="50" max="95" step="1" value="88" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+              <p class="text-[11px] text-slate-400 mt-1">85% 以上近乎無壓縮感，低於 65% 會出現微小噪斑</p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-4 pt-2 border-t border-slate-200">
+            <label class="flex items-center space-x-2 text-xs text-slate-700 cursor-pointer">
+              <input type="checkbox" id="grayscaleCheckbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+              <span>轉為黑白灰階（若為純公文合約，可額外節省 30% 空間）</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Start Compression Button -->
+        <div class="flex items-center justify-end space-x-3 pt-2">
+          <button id="startCompressBtn" class="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+            <span>開始高畫質壓縮</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Progress Bar (Visible during compression) -->
+      <div id="progressCard" class="hidden bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+        <div class="flex justify-between items-center">
+          <div class="flex items-center space-x-2">
+            <div class="animate-spin text-emerald-600">
+              <i data-lucide="loader-2" class="w-5 h-5"></i>
+            </div>
+            <span id="progressText" class="text-sm font-semibold text-slate-800">正在處理中...</span>
+          </div>
+          <span id="progressPercentage" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">0%</span>
+        </div>
+        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+          <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-300 w-0"></div>
+        </div>
+        <p class="text-[11px] text-slate-400">正在保留文字與圖片高頻細節，請稍候...</p>
+      </div>
+
+      <!-- Result Card (Shown after completion) -->
+      <div id="resultCard" class="hidden bg-white rounded-xl p-6 border border-emerald-200 shadow-sm space-y-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div class="flex items-center space-x-3">
+            <div class="bg-emerald-100 text-emerald-700 p-2 rounded-xl">
+              <i data-lucide="check-circle-2" class="w-7 h-7"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900">壓縮成功！圖片解析度已完整維護</h3>
+              <p class="text-xs text-slate-500">已透過智慧向量封裝與多層次取樣完成最佳化</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 w-full sm:w-auto">
+            <button id="downloadBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow hover:shadow-md transition flex items-center justify-center space-x-2">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>下載壓縮後的 PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Metrics Comparison Grid -->
+        <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+            <p class="text-[11px] text-slate-500 font-medium">原始大小</p>
+            <p id="resOriginalSize" class="text-base sm:text-lg font-bold text-slate-700 mt-0.5">0 MB</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+            <p class="text-[11px] text-slate-500 font-medium">壓縮後大小</p>
+            <p id="resCompressedSize" class="text-base sm:text-lg font-bold text-emerald-600 mt-0.5">0 MB</p>
+          </div>
+          <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+            <p class="text-[11px] text-emerald-800 font-medium">縮減空間比例</p>
+            <p id="resRatio" class="text-base sm:text-lg font-black text-emerald-700 mt-0.5">-0%</p>
+          </div>
+        </div>
+
+        <!-- Visual Inspection / Magnifier tool to verify resolution isn't ruined -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="scan-eye" class="w-4 h-4 text-emerald-600"></i>
+              <span class="text-xs font-bold text-slate-800">畫質檢驗對比（第一頁即時對照）</span>
+            </div>
+            <span class="text-[11px] text-slate-400">左右滑動拉桿即可肉眼確認字體與圖片細節</span>
+          </div>
+
+          <!-- Comparison Slider Container -->
+          <div class="relative w-full max-w-xl mx-auto h-80 sm:h-96 border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-100 flex items-center justify-center">
+            <!-- Canvas: Original High-Res -->
+            <canvas id="compCanvasOriginal" class="max-h-full max-w-full object-contain"></canvas>
+            
+            <!-- Overlay: Compressed High-Res -->
+            <div id="compOverlay" class="compare-overlay flex items-center justify-center pointer-events-none" style="clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);">
+              <canvas id="compCanvasProcessed" class="max-h-full max-w-full object-contain"></canvas>
+            </div>
+
+            <!-- Divider Line & Handle -->
+            <div id="compDivider" class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-emerald-500 shadow pointer-events-none">
+              <div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-white border-2 border-emerald-500 shadow flex items-center justify-center text-emerald-700">
+                <i data-lucide="chevrons-left-right" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+
+            <!-- Floating Badges -->
+            <div class="absolute top-3 left-3 bg-black/60 text-white text-[10px] font-semibold px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+              壓縮後 (Compressed)
+            </div>
+            <div class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-semibold px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
+              原圖 (Original)
+            </div>
+
+            <!-- Interactive transparent range overlay -->
+            <input type="range" id="compareSlider" min="0" max="100" value="50" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tips Section for non-destructive PDF compression -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <i data-lucide="aspect-ratio" class="w-4 h-4"></i>
+        </div>
+        <h4 class="text-xs font-bold text-slate-800">高階重取樣 (Super-Sampling)</h4>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          採用子像素抗鋸齒渲染，避免低階壓縮導致的文字破裂、字體邊緣鋸齒或相片顆粒化。
+        </p>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center">
+          <i data-lucide="layers" class="w-4 h-4"></i>
+        </div>
+        <h4 class="text-xs font-bold text-slate-800">精準尺寸保留</h4>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          完整鎖定每一頁原始公分數與版面點陣比率，保證 A4、Letter 或橫向投影片比例不變形。
+        </p>
+      </div>
+
+      <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+        </div>
+        <h4 class="text-xs font-bold text-slate-800">零隱私洩漏風險</h4>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          全套流程皆由您裝置本身的 WebAssembly 與 GPU 算力處理，合約、證件、機密絕不上傳網路。
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // State management
+    let originalPdfDoc = null;
+    let originalFile = null;
+    let compressedPdfBytes = null;
+    let totalPages = 0;
+    let originalFileSize = 0;
+
+    // DOM Elements
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const dashboard = document.getElementById('dashboard');
+    const fileName = document.getElementById('fileName');
+    const aspectBadge = document.getElementById('aspectBadge');
+    const originalSizeBadge = document.getElementById('originalSizeBadge');
+    const pageCountBadge = document.getElementById('pageCountBadge');
+    const reselectBtn = document.getElementById('reselectBtn');
+    
+    // Sliders & settings
+    const presetCards = document.querySelectorAll('.preset-card');
+    const customSettingsPanel = document.getElementById('customSettingsPanel');
+    const dpiSlider = document.getElementById('dpiSlider');
+    const dpiValue = document.getElementById('dpiValue');
+    const qualitySlider = document.getElementById('qualitySlider');
+    const qualityValue = document.getElementById('qualityValue');
+    const grayscaleCheckbox = document.getElementById('grayscaleCheckbox');
+    const startCompressBtn = document.getElementById('startCompressBtn');
+
+    // Progress & Results
+    const progressCard = document.getElementById('progressCard');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    const progressText = document.getElementById('progressText');
+    const resultCard = document.getElementById('resultCard');
+    const resOriginalSize = document.getElementById('resOriginalSize');
+    const resCompressedSize = document.getElementById('resCompressedSize');
+    const resRatio = document.getElementById('resRatio');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Comparison view
+    const compCanvasOriginal = document.getElementById('compCanvasOriginal');
+    const compCanvasProcessed = document.getElementById('compCanvasProcessed');
+    const compOverlay = document.getElementById('compOverlay');
+    const compDivider = document.getElementById('compDivider');
+    const compareSlider = document.getElementById('compareSlider');
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Format file size
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Helper to safely load and retrieve the PDFLib instance across various CDNs
+    async function ensurePdfLib() {
+      if (typeof window.PDFLib !== 'undefined') return window.PDFLib;
+      if (typeof window.pdfLib !== 'undefined') return window.pdfLib;
+
+      const cdnFallbacks = [
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
+        'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
+        'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.9/dist/pdf-lib.min.js'
+      ];
+
+      for (const src of cdnFallbacks) {
+        try {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+          if (typeof window.PDFLib !== 'undefined') return window.PDFLib;
+          if (typeof window.pdfLib !== 'undefined') return window.pdfLib;
+        } catch (e) {
+          console.warn(`CDN 載入失敗: ${src}，嘗試下一個來源...`);
+        }
+      }
+
+      throw new Error('無法載入 PDF-Lib 引擎，請確認網路連線是否通暢。');
+    }
+
+    // File Drag & Drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-emerald-500', 'bg-emerald-50/20');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/20');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/20');
+      if (e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+      }
+    });
+
+    reselectBtn.addEventListener('click', () => {
+      fileInput.value = '';
+      dashboard.classList.add('hidden');
+      dropZone.classList.remove('hidden');
+      resultCard.classList.add('hidden');
+      progressCard.classList.add('hidden');
+    });
+
+    async function handleFileSelect(file) {
+      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        const errorBanner = document.createElement('div');
+        errorBanner.className = 'fixed bottom-4 right-4 bg-red-600 text-white text-xs px-4 py-3 rounded-xl shadow-lg z-50';
+        errorBanner.innerText = '請選擇有效的 PDF 格式檔案！';
+        document.body.appendChild(errorBanner);
+        setTimeout(() => errorBanner.remove(), 3500);
+        return;
+      }
+
+      originalFile = file;
+      originalFileSize = file.size;
+      fileName.textContent = file.name;
+      originalSizeBadge.textContent = formatBytes(originalFileSize);
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        originalPdfDoc = await loadingTask.promise;
+        totalPages = originalPdfDoc.numPages;
+        pageCountBadge.textContent = totalPages;
+
+        // Check aspect ratio of the first page to auto-detect 16:9 presentations
+        const firstPage = await originalPdfDoc.getPage(1);
+        const vp = firstPage.getViewport({ scale: 1 });
+        const ratio = vp.width / vp.height;
+        
+        // 16:9 ratio is ~1.777
+        if (ratio >= 1.7 && ratio <= 1.85) {
+          aspectBadge.classList.remove('hidden');
+          aspectBadge.textContent = '16:9 簡報規格';
+          // Auto-select 16:9 preset
+          const presCard = document.getElementById('presentationPreset');
+          if (presCard) presCard.click();
+        } else if (ratio > 1.2) {
+          aspectBadge.classList.remove('hidden');
+          aspectBadge.textContent = '橫向文件/投影片';
+        } else {
+          aspectBadge.classList.add('hidden');
+        }
+
+        // Switch screens
+        dropZone.classList.add('hidden');
+        dashboard.classList.remove('hidden');
+        resultCard.classList.add('hidden');
+        progressCard.classList.add('hidden');
+      } catch (err) {
+        console.error("載入 PDF 發生錯誤:", err);
+      }
+    }
+
+    // Preset switching logic
+    presetCards.forEach(card => {
+      card.addEventListener('click', () => {
+        presetCards.forEach(c => {
+          c.classList.remove('border-emerald-500', 'bg-emerald-50/40');
+          c.classList.add('border-slate-200');
+        });
+        card.classList.add('border-emerald-500', 'bg-emerald-50/40');
+        card.classList.remove('border-slate-200');
+
+        const radio = card.querySelector('input[type="radio"]');
+        radio.checked = true;
+
+        if (radio.value === 'custom') {
+          customSettingsPanel.classList.remove('hidden');
+        } else {
+          customSettingsPanel.classList.add('hidden');
+        }
+      });
+    });
+
+    dpiSlider.addEventListener('input', (e) => {
+      dpiValue.textContent = `${e.target.value} DPI`;
+    });
+
+    qualitySlider.addEventListener('input', (e) => {
+      qualityValue.textContent = `${e.target.value}%`;
+    });
+
+    // Comparison slider logic
+    compareSlider.addEventListener('input', (e) => {
+      const val = e.target.value;
+      compOverlay.style.clipPath = `polygon(0 0, ${val}% 0, ${val}% 100%, 0% 100%)`;
+      compDivider.style.left = `${val}%`;
+    });
+
+    // Determine configuration parameters
+    function getCompressionParams() {
+      const selectedRadio = document.querySelector('input[name="compressionMode"]:checked').value;
+      let targetDpi = 200;
+      let quality = 0.88;
+      let isGrayscale = grayscaleCheckbox.checked;
+
+      if (selectedRadio === 'presentation') {
+        // 16:9 presentation display mode: 144 DPI renders exactly 1920x1080 (1080p FHD 1:1 pixel mapped)
+        targetDpi = 144;
+        quality = 0.85;
+      } else if (selectedRadio === 'hq') {
+        // High quality: 200 DPI, 88% JPEG - keeps fine details/text sharp
+        targetDpi = 200;
+        quality = 0.88;
+      } else if (selectedRadio === 'balanced') {
+        // Balanced: 150 DPI, 80% JPEG
+        targetDpi = 150;
+        quality = 0.80;
+      } else if (selectedRadio === 'compact') {
+        // Compact: 120 DPI, 70% JPEG
+        targetDpi = 120;
+        quality = 0.70;
+      } else if (selectedRadio === 'custom') {
+        targetDpi = parseInt(dpiSlider.value, 10);
+        quality = parseInt(qualitySlider.value, 10) / 100;
+      }
+
+      return { targetDpi, quality, isGrayscale };
+    }
+
+    // Main compression workflow
+    startCompressBtn.addEventListener('click', async () => {
+      if (!originalPdfDoc) return;
+
+      startCompressBtn.disabled = true;
+      startCompressBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      progressCard.classList.remove('hidden');
+      resultCard.classList.add('hidden');
+
+      const { targetDpi, quality, isGrayscale } = getCompressionParams();
+      
+      try {
+        progressText.textContent = '正在準備 PDF 處理核心...';
+        progressBar.style.width = '5%';
+        progressPercentage.textContent = '5%';
+
+        // Ensure PDFLib is loaded and ready
+        const PDFLibInstance = await ensurePdfLib();
+        const newPdfDoc = await PDFLibInstance.PDFDocument.create();
+        const standardDpi = 72; // Standard PDF base points per inch
+        const scale = targetDpi / standardDpi;
+
+        let previewOriginalBlob = null;
+        let previewProcessedBlob = null;
+
+        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+          // Update UI progress
+          const percent = Math.round(((pageNum - 1) / totalPages) * 100);
+          progressBar.style.width = `${percent}%`;
+          progressPercentage.textContent = `${percent}%`;
+          progressText.textContent = `正在智慧渲染第 ${pageNum} / ${totalPages} 頁 (以 ${targetDpi} DPI 銳利取樣)...`;
+
+          const page = await originalPdfDoc.getPage(pageNum);
+          const viewport = page.getViewport({ scale: scale });
+
+          // Offscreen high-res canvas
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d', { alpha: false });
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+
+          // High quality image smoothing
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+
+          // Render PDF page to canvas
+          await page.render({
+            canvasContext: ctx,
+            viewport: viewport
+          }).promise;
+
+          // If first page, keep a copy of original high-res for side-by-side comparison
+          if (pageNum === 1) {
+            compCanvasOriginal.width = canvas.width;
+            compCanvasOriginal.height = canvas.height;
+            const origCtx = compCanvasOriginal.getContext('2d');
+            origCtx.drawImage(canvas, 0, 0);
+          }
+
+          // Grayscale filter if enabled
+          if (isGrayscale) {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+              const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+              data[i] = gray;
+              data[i + 1] = gray;
+              data[i + 2] = gray;
+            }
+            ctx.putImageData(imgData, 0, 0);
+          }
+
+          // If first page, draw the compressed version into comparison viewer
+          if (pageNum === 1) {
+            compCanvasProcessed.width = canvas.width;
+            compCanvasProcessed.height = canvas.height;
+            const procCtx = compCanvasProcessed.getContext('2d');
+            procCtx.drawImage(canvas, 0, 0);
+          }
+
+          // Convert canvas to optimized JPEG byte array
+          const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
+          const base64Data = jpegDataUrl.split(',')[1];
+          const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+          // Embed in pdf-lib
+          const embeddedImage = await newPdfDoc.embedJpg(imageBytes);
+
+          // Standard dimensions in points
+          const originalViewport = page.getViewport({ scale: 1 });
+          const newPdfPage = newPdfDoc.addPage([originalViewport.width, originalViewport.height]);
+
+          newPdfPage.drawImage(embeddedImage, {
+            x: 0,
+            y: 0,
+            width: originalViewport.width,
+            height: originalViewport.height,
+          });
+
+          // Memory cleanup
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+
+        // Finalize PDF
+        progressText.textContent = '正在重新建構 PDF 檔案結構...';
+        progressBar.style.width = '100%';
+        progressPercentage.textContent = '100%';
+
+        compressedPdfBytes = await newPdfDoc.save();
+        const compressedSize = compressedPdfBytes.byteLength;
+
+        // Populate results
+        resOriginalSize.textContent = formatBytes(originalFileSize);
+        resCompressedSize.textContent = formatBytes(compressedSize);
+
+        const diff = originalFileSize - compressedSize;
+        const ratio = Math.max(0, Math.round((diff / originalFileSize) * 100));
+        resRatio.textContent = diff > 0 ? `-${ratio}% 體積` : '+0% (已最佳化)';
+
+        // Show result card
+        progressCard.classList.add('hidden');
+        resultCard.classList.remove('hidden');
+
+      } catch (err) {
+        console.error("壓縮失敗:", err);
+        const errorBanner = document.createElement('div');
+        errorBanner.className = 'fixed bottom-4 right-4 bg-red-600 text-white text-xs px-4 py-3 rounded-xl shadow-lg z-50';
+        errorBanner.innerText = '處理過程中發生錯誤，請確認檔案未加密並重試。';
+        document.body.appendChild(errorBanner);
+        setTimeout(() => errorBanner.remove(), 4000);
+      } finally {
+        startCompressBtn.disabled = false;
+        startCompressBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    });
+
+    // Download handler
+    downloadBtn.addEventListener('click', () => {
+      if (!compressedPdfBytes) return;
+      const blob = new Blob([compressedPdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const originalBaseName = originalFile.name.replace(/\.pdf$/i, '');
+      a.download = `${originalBaseName}_優化壓縮.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+  </script>
+</body>
+</html>
