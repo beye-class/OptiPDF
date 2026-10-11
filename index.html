@@ -7,15 +7,15 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@0.468.0"></script>
   <!-- PDF.js CDN (Page rendering) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <!-- PDF-Lib CDN (Cloudflare CDNJS - Higher reliability) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
   <script>
     // Configure PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    tailwind.config = {
+    if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    if(window.tailwind) tailwind.config = {
       theme: {
         extend: {
           colors: {
@@ -62,12 +62,13 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #94a3b8;
     }
-  </style>
+  [hidden]{display:none!important} .mode-card:has(input:checked){border-color:#10b981;background:#ecfdf5}.preset-card:focus-within{outline:3px solid #2563eb;outline-offset:2px}button:disabled{opacity:.5;cursor:wait}a[download]{cursor:pointer}:focus-visible{outline:3px solid #2563eb;outline-offset:3px}
+</style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="bg-gradient-to-tr from-emerald-600 to-teal-500 text-white p-2 rounded-xl shadow-md">
           <i data-lucide="file-down" class="w-6 h-6"></i>
@@ -75,9 +76,9 @@
         <div>
           <div class="flex items-center space-x-2">
             <h1 class="text-xl font-bold tracking-tight text-slate-900">OptiPDF</h1>
-            <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">高畫質壓縮版</span>
+            <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">雙模式壓縮版</span>
           </div>
-          <p class="text-xs text-slate-500">不破壞圖片解析度 • 智慧無損感演算法</p>
+          <p class="text-xs text-slate-500">保留文件功能 • 或選擇圖片式壓縮</p>
         </div>
       </div>
       <div class="flex items-center space-x-2 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-medium">
@@ -91,7 +92,7 @@
 
     <!-- Upload Zone -->
     <div id="dropZone" class="relative group border-2 border-dashed border-slate-300 hover:border-emerald-500 transition-all duration-200 rounded-2xl bg-white p-8 text-center cursor-pointer shadow-sm hover:shadow">
-      <input type="file" id="fileInput" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+      <input type="file" id="fileInput" aria-label="選擇 PDF 檔案" accept=".pdf,application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
       <div class="flex flex-col items-center justify-center space-y-3">
         <div class="w-16 h-16 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
           <i data-lucide="upload-cloud" class="w-8 h-8"></i>
@@ -102,11 +103,12 @@
         </div>
         <div class="inline-flex items-center space-x-1.5 text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full">
           <i data-lucide="info" class="w-3.5 h-3.5"></i>
-          <span>演算法特別鎖定保留圖形銳利度，抑制毛邊與噪點</span>
+          <span>檔案上限 100 MB；PDF 在您的瀏覽器內處理</span>
         </div>
       </div>
     </div>
 
+    <p id="status" role="status" aria-live="polite" class="text-sm whitespace-pre-line text-slate-700">請先選擇檔案。</p>
     <!-- Control Dashboard (Hidden initially) -->
     <div id="dashboard" class="hidden space-y-6">
       <!-- File Metadata Bar -->
@@ -133,15 +135,21 @@
       <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-5">
         <div class="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>
-            <h2 class="text-base font-bold text-slate-900">選擇壓縮策略</h2>
-            <p class="text-xs text-slate-500">專為避免破壞圖片解析度設計的階梯式模式</p>
+            <h2 class="text-base font-bold text-slate-900">選擇處理方式</h2>
+            <p class="text-xs text-slate-500">依文件用途選擇保留功能或轉成圖片</p>
           </div>
           <span class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 font-medium rounded-md border border-emerald-200">
-            推薦「高畫質優先」
+            預設保留功能
           </span>
         </div>
 
-        <!-- Mode Selection Grid -->
+        <fieldset class="grid grid-cols-1 sm:grid-cols-2 gap-3"><legend class="sr-only">PDF 處理方式</legend>
+<label class="mode-card border-2 rounded-xl p-4 cursor-pointer"><input type="radio" name="mode" value="preserve" checked class="accent-emerald-600"> <strong>保留文字與 PDF 功能</strong><p class="text-xs text-slate-600 mt-2">保留文字、向量與原文件物件，嘗試最佳化結構。此版本不重壓內嵌圖片，縮減幅度可能有限。</p></label>
+<label class="mode-card border-2 rounded-xl p-4 cursor-pointer"><input type="radio" name="mode" value="image" class="accent-emerald-600"> <strong>圖片式壓縮</strong><p class="text-xs text-slate-600 mt-2">逐頁轉成 JPEG，可調整 DPI 與畫質；適合掃描文件及圖片簡報。</p></label></fieldset>
+<p id="preserveNote" class="text-xs leading-relaxed bg-amber-50 text-amber-900 rounded-xl p-4">此模式最佳化原文件結構，文字與一般連結、書籤、表單物件不轉成圖片。偵測到簽章、加密或特殊結構時提供原檔；未變小也保留原檔。進階功能仍需在慣用閱讀器確認。</p>
+<div id="imageSettings" hidden class="space-y-4">
+<p class="text-xs bg-amber-50 text-amber-900 rounded-xl p-4">圖片模式會失去文字搜尋與複製、連結、書籤、互動表單、附件及數位簽章功能。</p>
+<!-- Mode Selection Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <!-- Preset 0: 16:9 Presentation (New) -->
           <label id="presentationPreset" class="preset-card cursor-pointer border-2 border-slate-200 hover:border-slate-300 rounded-xl p-3.5 flex flex-col justify-between transition-all">
@@ -152,7 +160,7 @@
                 <i data-lucide="projector" class="w-4 h-4 text-indigo-600"></i>
               </div>
               <h3 class="font-bold text-slate-900 text-sm mt-2">16:9 簡報投影</h3>
-              <p class="text-xs text-slate-500 mt-1">144 DPI (1920×1080)<br/>會議電視/投影機點對點無失真，檔案極小</p>
+              <p class="text-xs text-slate-500 mt-1">最長邊 1920 像素<br/>依原頁比例輸出；16:9 約 1920×1080</p>
             </div>
             <div class="mt-3 text-[11px] text-indigo-700 font-semibold flex items-center space-x-1">
               <i data-lucide="monitor" class="w-3.5 h-3.5"></i>
@@ -169,7 +177,7 @@
                 <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
               </div>
               <h3 class="font-bold text-slate-900 text-sm mt-2">高畫質優先</h3>
-              <p class="text-xs text-slate-500 mt-1">200 DPI / 88% 畫質<br/>相片、印刷與合約近乎原樣，減肥約 35%~55%</p>
+              <p class="text-xs text-slate-500 mt-1">200 DPI / 88% 畫質<br/>保留較多影像細節；縮減幅度依原檔而異</p>
             </div>
             <div class="mt-3 text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
               <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
@@ -186,7 +194,7 @@
                 <i data-lucide="scale" class="w-4 h-4 text-blue-600"></i>
               </div>
               <h3 class="font-bold text-slate-900 text-sm mt-2">均衡最佳化</h3>
-              <p class="text-xs text-slate-500 mt-1">150 DPI / 80% 畫質<br/>適合郵件寄送與文件，減肥約 50%~75%</p>
+              <p class="text-xs text-slate-500 mt-1">150 DPI / 80% 畫質<br/>適合一般分享；下載後請確認小字清晰度</p>
             </div>
             <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
               <i data-lucide="send" class="w-3.5 h-3.5"></i>
@@ -203,7 +211,7 @@
                 <i data-lucide="zap" class="w-4 h-4 text-amber-600"></i>
               </div>
               <h3 class="font-bold text-slate-900 text-sm mt-2">極限瘦身</h3>
-              <p class="text-xs text-slate-500 mt-1">120 DPI / 70% 畫質<br/>嚴格限制檔案大小時使用 (減幅可達 80%+)</p>
+              <p class="text-xs text-slate-500 mt-1">120 DPI / 70% 畫質<br/>適合優先縮小檔案；細節損失較明顯</p>
             </div>
             <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
               <i data-lucide="arrow-down-to-line" class="w-3.5 h-3.5"></i>
@@ -220,7 +228,7 @@
                 <i data-lucide="sliders" class="w-4 h-4 text-purple-600"></i>
               </div>
               <h3 class="font-bold text-slate-900 text-sm mt-2">自訂解析度</h3>
-              <p class="text-xs text-slate-500 mt-1">自選 4K UHD (288 DPI) 或手動調配各項參數</p>
+              <p class="text-xs text-slate-500 mt-1">自選 96～300 DPI 與 JPEG 編碼品質</p>
             </div>
             <div class="mt-3 text-[11px] text-slate-500 flex items-center space-x-1">
               <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5"></i>
@@ -229,11 +237,12 @@
           </label>
         </div>
 
-        <!-- Custom Controls Slider Panel -->
-        <div id="customSettingsPanel" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+        <label class="sr-only" for="presetSelect">圖片輸出設定</label><select id="presetSelect" class="sr-only"><option value="200">高畫質</option><option value="150">均衡</option><option value="120">輕量</option><option value="1080">最長邊 1920</option><option value="2160">最長邊 3840</option><option value="custom">自訂</option></select>
+<!-- Custom Controls Slider Panel -->
+        <div id="customSettingsPanel" class=" bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- DPI Slider -->
-            <div>
+            <div id="dpiControl" hidden>
               <div class="flex justify-between items-center mb-1.5">
                 <label for="dpiSlider" class="text-xs font-semibold text-slate-700 flex items-center space-x-1.5">
                   <i data-lucide="monitor" class="w-3.5 h-3.5 text-slate-500"></i>
@@ -241,8 +250,8 @@
                 </label>
                 <span id="dpiValue" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">200 DPI</span>
               </div>
-              <input type="range" id="dpiSlider" min="96" max="300" step="12" value="200" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
-              <p class="text-[11px] text-slate-400 mt-1">DPI 越高圖片越細膩，200~300 為出版印刷/高畫質標準</p>
+              <input type="range" id="dpiSlider" min="96" max="300" step="1" value="200" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
+              <p class="text-[11px] text-slate-400 mt-1">提高 DPI 會增加像素與記憶體用量，不會恢復原圖缺少的細節</p>
             </div>
 
             <!-- Quality Slider -->
@@ -255,29 +264,31 @@
                 <span id="qualityValue" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">88%</span>
               </div>
               <input type="range" id="qualitySlider" min="50" max="95" step="1" value="88" class="w-full accent-emerald-600 h-2 bg-slate-200 rounded-lg cursor-pointer" />
-              <p class="text-[11px] text-slate-400 mt-1">85% 以上近乎無壓縮感，低於 65% 會出現微小噪斑</p>
+              <p class="text-[11px] text-slate-400 mt-1">此百分比是編碼參數，並非保留原畫質的百分比</p>
             </div>
           </div>
 
           <div class="flex items-center space-x-4 pt-2 border-t border-slate-200">
             <label class="flex items-center space-x-2 text-xs text-slate-700 cursor-pointer">
               <input type="checkbox" id="grayscaleCheckbox" class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-              <span>轉為黑白灰階（若為純公文合約，可額外節省 30% 空間）</span>
+              <span>轉為灰階（會移除色彩；縮減幅度依內容而異）</span>
             </label>
           </div>
         </div>
 
-        <!-- Start Compression Button -->
+        <label class="flex gap-2 text-sm text-amber-900"><input id="imageConsent" type="checkbox" class="accent-emerald-600">我了解圖片模式會失去可搜尋文字與 PDF 互動功能。</label></div>
+<!-- Start Compression Button -->
         <div class="flex items-center justify-end space-x-3 pt-2">
-          <button id="startCompressBtn" class="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2">
+          <button disabled id="startCompressBtn" class="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2">
             <i data-lucide="cpu" class="w-5 h-5"></i>
-            <span>開始高畫質壓縮</span>
+            <span>開始最佳化</span>
           </button>
         </div>
       </div>
 
-      <!-- Progress Bar (Visible during compression) -->
-      <div id="progressCard" class="hidden bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
+      <button id="cancelBtn" hidden class="text-sm border border-slate-300 rounded-lg px-4 py-2">取消處理</button>
+<!-- Progress Bar (Visible during compression) -->
+      <div id="progressCard" hidden class=" bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-3">
         <div class="flex justify-between items-center">
           <div class="flex items-center space-x-2">
             <div class="animate-spin text-emerald-600">
@@ -287,34 +298,32 @@
           </div>
           <span id="progressPercentage" class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">0%</span>
         </div>
-        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-          <div id="progressBar" class="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-300 w-0"></div>
-        </div>
-        <p class="text-[11px] text-slate-400">正在保留文字與圖片高頻細節，請稍候...</p>
+        <progress id="processingProgress" max="100" value="0" aria-label="處理進度" class="w-full h-3"></progress>
+        <p class="text-[11px] text-slate-400">處理期間請保持此頁開啟。圖片模式最多 300 頁，每頁最多 1600 萬像素。</p>
       </div>
 
       <!-- Result Card (Shown after completion) -->
-      <div id="resultCard" class="hidden bg-white rounded-xl p-6 border border-emerald-200 shadow-sm space-y-6">
+      <div id="resultCard" hidden class=" bg-white rounded-xl p-6 border border-emerald-200 shadow-sm space-y-6">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
           <div class="flex items-center space-x-3">
             <div class="bg-emerald-100 text-emerald-700 p-2 rounded-xl">
               <i data-lucide="check-circle-2" class="w-7 h-7"></i>
             </div>
             <div>
-              <h3 class="text-lg font-bold text-slate-900">壓縮成功！圖片解析度已完整維護</h3>
-              <p class="text-xs text-slate-500">已透過智慧向量封裝與多層次取樣完成最佳化</p>
+              <h3 id="resultTitle" class="text-lg font-bold text-slate-900">處理完成</h3>
+              <p id="resultNote" class="text-xs text-slate-600 mt-2 leading-relaxed"></p>
             </div>
           </div>
           <div class="flex items-center space-x-2 w-full sm:w-auto">
-            <button id="downloadBtn" class="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow hover:shadow-md transition flex items-center justify-center space-x-2">
+            <a id="downloadLink" class="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow hover:shadow-md transition flex items-center justify-center space-x-2">
               <i data-lucide="download" class="w-4 h-4"></i>
-              <span>下載壓縮後的 PDF</span>
-            </button>
+              <span>下載輸出 PDF</span>
+            </a><a id="originalLink" class="px-4 py-2 text-sm border border-slate-300 rounded-xl">下載原檔</a>
           </div>
         </div>
 
         <!-- Metrics Comparison Grid -->
-        <div class="grid grid-cols-3 gap-3 text-center">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-center">
           <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/80">
             <p class="text-[11px] text-slate-500 font-medium">原始大小</p>
             <p id="resOriginalSize" class="text-base sm:text-lg font-bold text-slate-700 mt-0.5">0 MB</p>
@@ -330,23 +339,23 @@
         </div>
 
         <!-- Visual Inspection / Magnifier tool to verify resolution isn't ruined -->
-        <div class="space-y-3 pt-2">
+        <div id="comparison" hidden class="space-y-3 pt-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <i data-lucide="scan-eye" class="w-4 h-4 text-emerald-600"></i>
-              <span class="text-xs font-bold text-slate-800">畫質檢驗對比（第一頁即時對照）</span>
+              <span class="text-xs font-bold text-slate-800">第一頁 JPEG 編碼前後比較</span>
             </div>
-            <span class="text-[11px] text-slate-400">左右滑動拉桿即可肉眼確認字體與圖片細節</span>
+            <span class="text-[11px] text-slate-400">同一輸出解析度；請下載檢查其他頁面</span>
           </div>
 
-          <!-- Comparison Slider Container -->
+          <p id="previewSize" class="text-xs text-slate-500"></p><!-- Comparison Slider Container -->
           <div class="relative w-full max-w-xl mx-auto h-80 sm:h-96 border border-slate-200 rounded-xl overflow-hidden shadow-inner bg-slate-100 flex items-center justify-center">
             <!-- Canvas: Original High-Res -->
-            <canvas id="compCanvasOriginal" class="max-h-full max-w-full object-contain"></canvas>
+            <img id="compImageOriginal" alt="第一頁 JPEG 編碼前" class="max-h-full max-w-full object-contain" />
             
             <!-- Overlay: Compressed High-Res -->
             <div id="compOverlay" class="compare-overlay flex items-center justify-center pointer-events-none" style="clip-path: polygon(0 0, 50% 0, 50% 100%, 0% 100%);">
-              <canvas id="compCanvasProcessed" class="max-h-full max-w-full object-contain"></canvas>
+              <img id="compImageProcessed" alt="第一頁 JPEG 編碼後" class="max-h-full max-w-full object-contain" />
             </div>
 
             <!-- Divider Line & Handle -->
@@ -361,11 +370,11 @@
               壓縮後 (Compressed)
             </div>
             <div class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-semibold px-2 py-1 rounded backdrop-blur-sm pointer-events-none">
-              原圖 (Original)
+              編碼前 (Before JPEG)
             </div>
 
             <!-- Interactive transparent range overlay -->
-            <input type="range" id="compareSlider" min="0" max="100" value="50" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20" />
+            <input type="range" aria-label="畫質比較分界" id="compareSlider" min="0" max="100" value="50" class="absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-20" />
           </div>
         </div>
       </div>
@@ -377,9 +386,9 @@
         <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
           <i data-lucide="aspect-ratio" class="w-4 h-4"></i>
         </div>
-        <h4 class="text-xs font-bold text-slate-800">高階重取樣 (Super-Sampling)</h4>
+        <h4 class="text-xs font-bold text-slate-800">依用途選擇輸出</h4>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          採用子像素抗鋸齒渲染，避免低階壓縮導致的文字破裂、字體邊緣鋸齒或相片顆粒化。
+          保留功能模式最佳化文件結構；圖片模式依選定解析度渲染，再使用 JPEG 編碼。
         </p>
       </div>
 
@@ -397,403 +406,63 @@
         <div class="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
           <i data-lucide="lock" class="w-4 h-4"></i>
         </div>
-        <h4 class="text-xs font-bold text-slate-800">零隱私洩漏風險</h4>
+        <h4 class="text-xs font-bold text-slate-800">瀏覽器內處理</h4>
         <p class="text-[11px] text-slate-500 leading-relaxed">
-          全套流程皆由您裝置本身的 WebAssembly 與 GPU 算力處理，合約、證件、機密絕不上傳網路。
+          PDF 檔案在瀏覽器內處理，不上傳伺服器。頁面樣式、字型及處理函式庫需連線從外部 CDN 載入。
         </p>
       </div>
     </div>
   </main>
 
   <script>
-    // State management
-    let originalPdfDoc = null;
-    let originalFile = null;
-    let compressedPdfBytes = null;
-    let totalPages = 0;
-    let originalFileSize = 0;
+window.addEventListener('DOMContentLoaded',()=>{
+if(window.lucide)lucide.createIcons();
+const $=id=>document.getElementById(id);let source=null,busy=false,cancelled=false,renderTask=null,urls=[];
+const size=n=>n<1024?n+' B':(n/1024**(n<1048576?1:2)).toFixed(2)+(n<1048576?' KB':' MB');
+const url=blob=>{const u=URL.createObjectURL(blob);urls.push(u);return u;};
+function reset(){urls.forEach(URL.revokeObjectURL);urls=[];$('resultCard').hidden=true;$('comparison').hidden=true;$('compImageOriginal').removeAttribute('src');$('compImageProcessed').removeAttribute('src');}
+function mode(){return document.querySelector('input[name=mode]:checked').value;}
+function sync(){const image=mode()==='image';$('imageSettings').hidden=!image;$('preserveNote').hidden=image;$('startCompressBtn').disabled=busy||!source||(image&&!$('imageConsent').checked);$('dpiControl').hidden=$('presetSelect').value!=='custom';}
+function checkCancel(){if(cancelled)throw new Error('已取消處理。');}
+function setProgress(n,t){$('processingProgress').value=n;$('status').textContent=t;$('progressText').textContent=t;$('progressPercentage').textContent=Math.round(n)+'%';}
+function lock(v){busy=v;$('reselectBtn').disabled=v;$('progressCard').hidden=!v;document.querySelectorAll('input,select').forEach(e=>e.disabled=v);$('cancelBtn').hidden=!v;sync();}
+async function selectFile(f){if(busy)return;reset();source=null;$('fileMeta').textContent='';if(!f){$('status').textContent='請先選擇檔案。';sync();return;}if(f.size>100*1024*1024){$('status').textContent='檔案超過 100 MB，請改用桌面 PDF 工具。';sync();return;}busy=true;document.querySelectorAll('input,select').forEach(e=>e.disabled=true);sync();$('status').textContent='正在讀取檔案…';try{const bytes=new Uint8Array(await f.arrayBuffer());if(!new TextDecoder().decode(bytes.subarray(0,1024)).includes('%PDF-'))throw new Error('檔案不是有效的 PDF。');source={file:f,bytes};$('fileMeta').textContent=size(f.size);$('fileName').textContent=f.name;$('dashboard').classList.remove('hidden');$('status').textContent='檔案已就緒。';}catch(err){$('status').textContent=err.message;}finally{document.querySelectorAll('input,select').forEach(e=>e.disabled=false);busy=false;sync();}}
+$('fileInput').addEventListener('change',e=>selectFile(e.target.files[0]));
+window.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();});
+window.addEventListener('drop',e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();});
+$('dropZone').addEventListener('dragover',e=>{e.preventDefault();if(!busy)$('dropZone').style.borderColor='#16835b';});
+$('dropZone').addEventListener('dragleave',()=>{$('dropZone').style.borderColor='';});
+$('dropZone').addEventListener('drop',e=>{e.preventDefault();$('dropZone').style.borderColor='';if(busy)return;if(e.dataTransfer.files.length!==1){$('status').textContent='請一次拖入一份 PDF。';return;}$('fileInput').value='';selectFile(e.dataTransfer.files[0]);});
+document.querySelectorAll('input[name=mode],#imageConsent,#presetSelect').forEach(e=>e.addEventListener('change',sync));
+$('dpiSlider').oninput=()=>{$('dpiValue').textContent=$('dpiSlider').value+' DPI';};$('qualitySlider').oninput=()=>{$('qualityValue').textContent=$('qualitySlider').value+'%';};
+$('compareSlider').oninput=()=>{$('compOverlay').style.clipPath='inset(0 '+(100-$('compareSlider').value)+'% 0 0)';$('compDivider').style.left=$('compareSlider').value+'%';};
+$('cancelBtn').onclick=()=>{cancelled=true;if(renderTask)renderTask.cancel();$('status').textContent='正在取消…';};
+function protectedFeatures(doc,lib){const N=lib.PDFName;for(const [,obj]of doc.context.enumerateIndirectObjects()){if(obj instanceof lib.PDFDict){const type=obj.get(N.of('Type'));const ft=obj.get(N.of('FT'));if(String(type)==='/Sig'||String(ft)==='/Sig'||obj.has(N.of('ByteRange')))return '偵測到簽章或簽章欄位，提供原檔以保留簽章。';if(obj.has(N.of('XFA')))return '偵測到 XFA 動態表單，提供原檔以保留表單功能。';}}if(doc.catalog.has(N.of('Collection'))||doc.catalog.has(N.of('Perms')))return '偵測到文件集合或特殊權限結構，提供原檔以保留功能。';return '';}
+async function toBlob(canvas,type,quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('影像編碼失敗。')),type,quality));}
+$('startCompressBtn').onclick=async()=>{if(busy||!source||(mode()==='image'&&!$('imageConsent').checked))return;reset();cancelled=false;lock(true);$('processingProgress').hidden=false;setProgress(0,'正在讀取 PDF…');let pdf=null;let output,note='',kept=false;const image=mode()==='image';try{
+if(!window.PDFLib)throw new Error('PDF-Lib 載入失敗，請確認網路後重新整理。');const lib=window.PDFLib;
+if(!image){let doc;try{doc=await lib.PDFDocument.load(source.bytes.slice(),{updateMetadata:false});}catch(err){if(/encrypt/i.test(err.message)){output=source.bytes;kept=true;note='文件已加密，提供原檔以保留加密與權限。';}else throw err;}
+if(doc){note=protectedFeatures(doc,lib);if(note){output=source.bytes;kept=true;}else{setProgress(30,'正在最佳化文件結構…');await new Promise(r=>setTimeout(r,0));checkCancel();output=await doc.save({useObjectStreams:true,updateFieldAppearances:false,objectsPerTick:25});checkCancel();if(output.length>=source.bytes.length){output=source.bytes;kept=true;note='結構最佳化沒有減少檔案大小，已保留原檔。';}else note='已最佳化文件結構，文字與圖片物件保留；未重新壓縮圖片。請確認連結、書籤及表單在慣用閱讀器中正常。';}}
+}else{
+if(!window.pdfjsLib)throw new Error('PDF.js 載入失敗，請確認網路後重新整理。');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';pdf=await pdfjsLib.getDocument({data:source.bytes.slice(),isEvalSupported:false}).promise;checkCancel();if(pdf.numPages>300)throw new Error('圖片模式最多支援 300 頁。');const out=await lib.PDFDocument.create();const preset=$('presetSelect').value,quality=Number($('qualitySlider').value)/100,gray=$('grayscaleCheckbox').checked;
+for(let i=1;i<=pdf.numPages;i++){checkCancel();setProgress((i-1)/pdf.numPages*90,'正在處理第 '+i+' / '+pdf.numPages+' 頁…');const page=await pdf.getPage(i),base=page.getViewport({scale:1});let scale=preset==='1080'||preset==='2160'?(preset==='1080'?1920:3840)/Math.max(base.width,base.height):Number(preset==='custom'?$('dpiSlider').value:preset)/72;let vp=page.getViewport({scale});if(vp.width*vp.height>16000000||Math.max(vp.width,vp.height)>8192)throw new Error('第 '+i+' 頁尺寸過大，請降低解析度。');const canvas=document.createElement('canvas');try{canvas.width=Math.ceil(vp.width);canvas.height=Math.ceil(vp.height);const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw new Error('瀏覽器無法建立畫布。');renderTask=page.render({canvasContext:ctx,viewport:vp,background:'rgb(255,255,255)'});await renderTask.promise;renderTask=null;checkCancel();if(i===1)$('compImageOriginal').src=url(await toBlob(canvas,'image/png'));
+if(gray){const data=ctx.getImageData(0,0,canvas.width,canvas.height);for(let j=0;j<data.data.length;j+=4){const v=Math.round(.299*data.data[j]+.587*data.data[j+1]+.114*data.data[j+2]);data.data[j]=data.data[j+1]=data.data[j+2]=v;}ctx.putImageData(data,0,0);}const blob=await toBlob(canvas,'image/jpeg',quality);if(i===1){$('compImageProcessed').src=url(blob);$('previewSize').textContent=canvas.width+' × '+canvas.height+' 像素';}const jpg=await out.embedJpg(await blob.arrayBuffer());out.addPage([base.width,base.height]).drawImage(jpg,{x:0,y:0,width:base.width,height:base.height});}finally{canvas.width=canvas.height=0;page.cleanup();}await new Promise(r=>setTimeout(r,0));}
+checkCancel();setProgress(95,'正在組合圖片式 PDF…');output=await out.save({objectsPerTick:25});checkCancel();note='已轉成圖片式 PDF；文字搜尋、連結、表單、書籤與附件功能不保留。';$('comparison').hidden=false;$('compareSlider').value=50;$('compOverlay').style.clipPath='inset(0 50% 0 0)';$('compDivider').style.left='50%';
+}
+checkCancel();const delta=(1-output.length/source.bytes.length)*100;$('resOriginalSize').textContent=size(source.bytes.length);$('resCompressedSize').textContent=size(output.length);$('resRatio').textContent=delta>=0?delta.toFixed(1)+'%':'增加 '+(-delta).toFixed(1)+'%';if(delta<0)note+=' 輸出比原檔大，建議下載原檔或降低圖片畫質。';$('resultTitle').textContent=kept?'已保留原檔':'處理完成';$('resultNote').textContent=note;$('downloadLink').href=url(new Blob([output],{type:'application/pdf'}));$('downloadLink').download=kept?source.file.name:source.file.name.replace(/\.pdf$/i,'')+(image?'_圖片式':'_保留功能')+'.pdf';$('downloadLink').textContent=kept?'下載保留的原檔':'下載輸出 PDF';$('originalLink').href=url(source.file);$('originalLink').download=source.file.name;$('resultCard').hidden=false;setProgress(100,'處理完成。');
+}catch(err){$('status').textContent=cancelled?'已取消處理。':(/password/i.test(err.name+' '+err.message)?'此 PDF 需要密碼；請先解鎖後再使用圖片模式。':'處理失敗：'+err.message);reset();}finally{renderTask=null;if(pdf)await pdf.destroy().catch(()=>{});$('processingProgress').hidden=true;lock(false);}};
+$('reselectBtn').onclick=()=>{if(busy)return;selectFile(null);$('fileInput').value='';$('dashboard').classList.add('hidden');};
 
-    // DOM Elements
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const dashboard = document.getElementById('dashboard');
-    const fileName = document.getElementById('fileName');
-    const aspectBadge = document.getElementById('aspectBadge');
-    const originalSizeBadge = document.getElementById('originalSizeBadge');
-    const pageCountBadge = document.getElementById('pageCountBadge');
-    const reselectBtn = document.getElementById('reselectBtn');
-    
-    // Sliders & settings
-    const presetCards = document.querySelectorAll('.preset-card');
-    const customSettingsPanel = document.getElementById('customSettingsPanel');
-    const dpiSlider = document.getElementById('dpiSlider');
-    const dpiValue = document.getElementById('dpiValue');
-    const qualitySlider = document.getElementById('qualitySlider');
-    const qualityValue = document.getElementById('qualityValue');
-    const grayscaleCheckbox = document.getElementById('grayscaleCheckbox');
-    const startCompressBtn = document.getElementById('startCompressBtn');
-
-    // Progress & Results
-    const progressCard = document.getElementById('progressCard');
-    const progressBar = document.getElementById('progressBar');
-    const progressPercentage = document.getElementById('progressPercentage');
-    const progressText = document.getElementById('progressText');
-    const resultCard = document.getElementById('resultCard');
-    const resOriginalSize = document.getElementById('resOriginalSize');
-    const resCompressedSize = document.getElementById('resCompressedSize');
-    const resRatio = document.getElementById('resRatio');
-    const downloadBtn = document.getElementById('downloadBtn');
-
-    // Comparison view
-    const compCanvasOriginal = document.getElementById('compCanvasOriginal');
-    const compCanvasProcessed = document.getElementById('compCanvasProcessed');
-    const compOverlay = document.getElementById('compOverlay');
-    const compDivider = document.getElementById('compDivider');
-    const compareSlider = document.getElementById('compareSlider');
-
-    // Initialize Lucide icons
-    lucide.createIcons();
-
-    // Format file size
-    function formatBytes(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // Helper to safely load and retrieve the PDFLib instance across various CDNs
-    async function ensurePdfLib() {
-      if (typeof window.PDFLib !== 'undefined') return window.PDFLib;
-      if (typeof window.pdfLib !== 'undefined') return window.pdfLib;
-
-      const cdnFallbacks = [
-        'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js',
-        'https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js',
-        'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.9/dist/pdf-lib.min.js'
-      ];
-
-      for (const src of cdnFallbacks) {
-        try {
-          await new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-          if (typeof window.PDFLib !== 'undefined') return window.PDFLib;
-          if (typeof window.pdfLib !== 'undefined') return window.pdfLib;
-        } catch (e) {
-          console.warn(`CDN 載入失敗: ${src}，嘗試下一個來源...`);
-        }
-      }
-
-      throw new Error('無法載入 PDF-Lib 引擎，請確認網路連線是否通暢。');
-    }
-
-    // File Drag & Drop handlers
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('border-emerald-500', 'bg-emerald-50/20');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/20');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('border-emerald-500', 'bg-emerald-50/20');
-      if (e.dataTransfer.files.length > 0) {
-        handleFileSelect(e.dataTransfer.files[0]);
-      }
-    });
-
-    fileInput.addEventListener('change', (e) => {
-      if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
-      }
-    });
-
-    reselectBtn.addEventListener('click', () => {
-      fileInput.value = '';
-      dashboard.classList.add('hidden');
-      dropZone.classList.remove('hidden');
-      resultCard.classList.add('hidden');
-      progressCard.classList.add('hidden');
-    });
-
-    async function handleFileSelect(file) {
-      if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-        const errorBanner = document.createElement('div');
-        errorBanner.className = 'fixed bottom-4 right-4 bg-red-600 text-white text-xs px-4 py-3 rounded-xl shadow-lg z-50';
-        errorBanner.innerText = '請選擇有效的 PDF 格式檔案！';
-        document.body.appendChild(errorBanner);
-        setTimeout(() => errorBanner.remove(), 3500);
-        return;
-      }
-
-      originalFile = file;
-      originalFileSize = file.size;
-      fileName.textContent = file.name;
-      originalSizeBadge.textContent = formatBytes(originalFileSize);
-
-      try {
-        const arrayBuffer = await file.arrayBuffer();
-        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
-        originalPdfDoc = await loadingTask.promise;
-        totalPages = originalPdfDoc.numPages;
-        pageCountBadge.textContent = totalPages;
-
-        // Check aspect ratio of the first page to auto-detect 16:9 presentations
-        const firstPage = await originalPdfDoc.getPage(1);
-        const vp = firstPage.getViewport({ scale: 1 });
-        const ratio = vp.width / vp.height;
-        
-        // 16:9 ratio is ~1.777
-        if (ratio >= 1.7 && ratio <= 1.85) {
-          aspectBadge.classList.remove('hidden');
-          aspectBadge.textContent = '16:9 簡報規格';
-          // Auto-select 16:9 preset
-          const presCard = document.getElementById('presentationPreset');
-          if (presCard) presCard.click();
-        } else if (ratio > 1.2) {
-          aspectBadge.classList.remove('hidden');
-          aspectBadge.textContent = '橫向文件/投影片';
-        } else {
-          aspectBadge.classList.add('hidden');
-        }
-
-        // Switch screens
-        dropZone.classList.add('hidden');
-        dashboard.classList.remove('hidden');
-        resultCard.classList.add('hidden');
-        progressCard.classList.add('hidden');
-      } catch (err) {
-        console.error("載入 PDF 發生錯誤:", err);
-      }
-    }
-
-    // Preset switching logic
-    presetCards.forEach(card => {
-      card.addEventListener('click', () => {
-        presetCards.forEach(c => {
-          c.classList.remove('border-emerald-500', 'bg-emerald-50/40');
-          c.classList.add('border-slate-200');
-        });
-        card.classList.add('border-emerald-500', 'bg-emerald-50/40');
-        card.classList.remove('border-slate-200');
-
-        const radio = card.querySelector('input[type="radio"]');
-        radio.checked = true;
-
-        if (radio.value === 'custom') {
-          customSettingsPanel.classList.remove('hidden');
-        } else {
-          customSettingsPanel.classList.add('hidden');
-        }
-      });
-    });
-
-    dpiSlider.addEventListener('input', (e) => {
-      dpiValue.textContent = `${e.target.value} DPI`;
-    });
-
-    qualitySlider.addEventListener('input', (e) => {
-      qualityValue.textContent = `${e.target.value}%`;
-    });
-
-    // Comparison slider logic
-    compareSlider.addEventListener('input', (e) => {
-      const val = e.target.value;
-      compOverlay.style.clipPath = `polygon(0 0, ${val}% 0, ${val}% 100%, 0% 100%)`;
-      compDivider.style.left = `${val}%`;
-    });
-
-    // Determine configuration parameters
-    function getCompressionParams() {
-      const selectedRadio = document.querySelector('input[name="compressionMode"]:checked').value;
-      let targetDpi = 200;
-      let quality = 0.88;
-      let isGrayscale = grayscaleCheckbox.checked;
-
-      if (selectedRadio === 'presentation') {
-        // 16:9 presentation display mode: 144 DPI renders exactly 1920x1080 (1080p FHD 1:1 pixel mapped)
-        targetDpi = 144;
-        quality = 0.85;
-      } else if (selectedRadio === 'hq') {
-        // High quality: 200 DPI, 88% JPEG - keeps fine details/text sharp
-        targetDpi = 200;
-        quality = 0.88;
-      } else if (selectedRadio === 'balanced') {
-        // Balanced: 150 DPI, 80% JPEG
-        targetDpi = 150;
-        quality = 0.80;
-      } else if (selectedRadio === 'compact') {
-        // Compact: 120 DPI, 70% JPEG
-        targetDpi = 120;
-        quality = 0.70;
-      } else if (selectedRadio === 'custom') {
-        targetDpi = parseInt(dpiSlider.value, 10);
-        quality = parseInt(qualitySlider.value, 10) / 100;
-      }
-
-      return { targetDpi, quality, isGrayscale };
-    }
-
-    // Main compression workflow
-    startCompressBtn.addEventListener('click', async () => {
-      if (!originalPdfDoc) return;
-
-      startCompressBtn.disabled = true;
-      startCompressBtn.classList.add('opacity-50', 'cursor-not-allowed');
-      progressCard.classList.remove('hidden');
-      resultCard.classList.add('hidden');
-
-      const { targetDpi, quality, isGrayscale } = getCompressionParams();
-      
-      try {
-        progressText.textContent = '正在準備 PDF 處理核心...';
-        progressBar.style.width = '5%';
-        progressPercentage.textContent = '5%';
-
-        // Ensure PDFLib is loaded and ready
-        const PDFLibInstance = await ensurePdfLib();
-        const newPdfDoc = await PDFLibInstance.PDFDocument.create();
-        const standardDpi = 72; // Standard PDF base points per inch
-        const scale = targetDpi / standardDpi;
-
-        let previewOriginalBlob = null;
-        let previewProcessedBlob = null;
-
-        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-          // Update UI progress
-          const percent = Math.round(((pageNum - 1) / totalPages) * 100);
-          progressBar.style.width = `${percent}%`;
-          progressPercentage.textContent = `${percent}%`;
-          progressText.textContent = `正在智慧渲染第 ${pageNum} / ${totalPages} 頁 (以 ${targetDpi} DPI 銳利取樣)...`;
-
-          const page = await originalPdfDoc.getPage(pageNum);
-          const viewport = page.getViewport({ scale: scale });
-
-          // Offscreen high-res canvas
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d', { alpha: false });
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-
-          // High quality image smoothing
-          ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
-
-          // Render PDF page to canvas
-          await page.render({
-            canvasContext: ctx,
-            viewport: viewport
-          }).promise;
-
-          // If first page, keep a copy of original high-res for side-by-side comparison
-          if (pageNum === 1) {
-            compCanvasOriginal.width = canvas.width;
-            compCanvasOriginal.height = canvas.height;
-            const origCtx = compCanvasOriginal.getContext('2d');
-            origCtx.drawImage(canvas, 0, 0);
-          }
-
-          // Grayscale filter if enabled
-          if (isGrayscale) {
-            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const data = imgData.data;
-            for (let i = 0; i < data.length; i += 4) {
-              const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-              data[i] = gray;
-              data[i + 1] = gray;
-              data[i + 2] = gray;
-            }
-            ctx.putImageData(imgData, 0, 0);
-          }
-
-          // If first page, draw the compressed version into comparison viewer
-          if (pageNum === 1) {
-            compCanvasProcessed.width = canvas.width;
-            compCanvasProcessed.height = canvas.height;
-            const procCtx = compCanvasProcessed.getContext('2d');
-            procCtx.drawImage(canvas, 0, 0);
-          }
-
-          // Convert canvas to optimized JPEG byte array
-          const jpegDataUrl = canvas.toDataURL('image/jpeg', quality);
-          const base64Data = jpegDataUrl.split(',')[1];
-          const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-
-          // Embed in pdf-lib
-          const embeddedImage = await newPdfDoc.embedJpg(imageBytes);
-
-          // Standard dimensions in points
-          const originalViewport = page.getViewport({ scale: 1 });
-          const newPdfPage = newPdfDoc.addPage([originalViewport.width, originalViewport.height]);
-
-          newPdfPage.drawImage(embeddedImage, {
-            x: 0,
-            y: 0,
-            width: originalViewport.width,
-            height: originalViewport.height,
-          });
-
-          // Memory cleanup
-          canvas.width = 0;
-          canvas.height = 0;
-        }
-
-        // Finalize PDF
-        progressText.textContent = '正在重新建構 PDF 檔案結構...';
-        progressBar.style.width = '100%';
-        progressPercentage.textContent = '100%';
-
-        compressedPdfBytes = await newPdfDoc.save();
-        const compressedSize = compressedPdfBytes.byteLength;
-
-        // Populate results
-        resOriginalSize.textContent = formatBytes(originalFileSize);
-        resCompressedSize.textContent = formatBytes(compressedSize);
-
-        const diff = originalFileSize - compressedSize;
-        const ratio = Math.max(0, Math.round((diff / originalFileSize) * 100));
-        resRatio.textContent = diff > 0 ? `-${ratio}% 體積` : '+0% (已最佳化)';
-
-        // Show result card
-        progressCard.classList.add('hidden');
-        resultCard.classList.remove('hidden');
-
-      } catch (err) {
-        console.error("壓縮失敗:", err);
-        const errorBanner = document.createElement('div');
-        errorBanner.className = 'fixed bottom-4 right-4 bg-red-600 text-white text-xs px-4 py-3 rounded-xl shadow-lg z-50';
-        errorBanner.innerText = '處理過程中發生錯誤，請確認檔案未加密並重試。';
-        document.body.appendChild(errorBanner);
-        setTimeout(() => errorBanner.remove(), 4000);
-      } finally {
-        startCompressBtn.disabled = false;
-        startCompressBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-      }
-    });
-
-    // Download handler
-    downloadBtn.addEventListener('click', () => {
-      if (!compressedPdfBytes) return;
-      const blob = new Blob([compressedPdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const originalBaseName = originalFile.name.replace(/\.pdf$/i, '');
-      a.download = `${originalBaseName}_優化壓縮.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    });
-  </script>
+document.querySelectorAll('input[name="compressionMode"]').forEach(radio=>radio.addEventListener('change',()=>{
+ const values={presentation:'1080',hq:'200',balanced:'150',compact:'120',custom:'custom'};
+ document.getElementById('presetSelect').value=values[radio.value];
+ document.querySelectorAll('.preset-card').forEach(card=>{const selected=card.querySelector('input').checked;card.classList.toggle('border-emerald-500',selected);card.classList.toggle('bg-emerald-50/40',selected);card.classList.toggle('border-slate-200',!selected);});
+ const qualities={presentation:85,hq:88,balanced:80,compact:70};
+ if(qualities[radio.value]){document.getElementById('qualitySlider').value=qualities[radio.value];document.getElementById('qualityValue').textContent=qualities[radio.value]+'%';}
+ document.getElementById('presetSelect').dispatchEvent(new Event('change'));
+}));
+window.addEventListener('beforeunload',()=>urls.forEach(URL.revokeObjectURL));sync();
+});
+</script>
 </body>
 </html>
